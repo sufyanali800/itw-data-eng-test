@@ -1,0 +1,18 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"value": "earthquakes-demo-pipeline"
+		},
+		"earthquakes-demo-pipeline-WorkspaceDefaultSqlServer_connectionString": {
+			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:earthquakes-demo-pipeline.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"link_earthquakes_source_connectionString": {
+			"value": ""
+		},
+		"earthquakes-demo-pipeline-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://earthquakeslakehouse.dfs.core.windows.net"
+		}
+	}
+}
