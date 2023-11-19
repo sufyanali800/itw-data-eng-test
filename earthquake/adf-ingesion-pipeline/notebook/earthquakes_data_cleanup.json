@@ -1,0 +1,66 @@
+{
+	"name": "earthquakes_data_cleanup",
+	"properties": {
+		"description": "it will do the data clean up",
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "demo",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c1e3ee76-c0c7-48c1-ab20-b11ee30a773d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/e864c2c1-8ece-4d08-9e0e-b918af4697ec/resourceGroups/earthquake-demo/providers/Microsoft.Synapse/workspaces/earthquakes-demo-pipeline/bigDataPools/demo",
+				"name": "demo",
+				"type": "Spark",
+				"endpoint": "https://earthquakes-demo-pipeline.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/demo",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 10,
+				"cores": 16,
+				"memory": 112,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.read.parquet(\"abfss://earthquakes@earthquakeslakehouse.dfs.core.windows.net/bronze/\")\r\n",
+					"\r\n",
+					"print(\"Total records: \"+ str(df.count()))"
+				],
+				"execution_count": 8
+			}
+		]
+	}
+}
