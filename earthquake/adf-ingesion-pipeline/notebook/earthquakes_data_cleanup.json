@@ -1,7 +1,7 @@
 {
 	"name": "earthquakes_data_cleanup",
 	"properties": {
-		"description": "it will do the data clean up",
+		"description": "it will do the data cleanup and store data in the silver layer",
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c1e3ee76-c0c7-48c1-ab20-b11ee30a773d"
+				"spark.autotune.trackingId": "1f81b8f8-0bca-4b6c-ab16-755281c6e709"
 			}
 		},
 		"metadata": {
@@ -55,11 +55,98 @@
 					"collapsed": false
 				},
 				"source": [
-					"df = spark.read.parquet(\"abfss://earthquakes@earthquakeslakehouse.dfs.core.windows.net/bronze/\")\r\n",
+					"# load data\r\n",
+					"df_source = spark.read.parquet(\"abfss://earthquakes@earthquakeslakehouse.dfs.core.windows.net/bronze/\")\r\n",
 					"\r\n",
-					"print(\"Total records: \"+ str(df.count()))"
+					"print(\"Total records: \"+ str(df_source.count()))"
 				],
-				"execution_count": 8
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# remove duplicates\r\n",
+					"\r\n",
+					"df_earthquakes = df_source.distinct()\r\n",
+					"df_earthquakes = df_earthquakes.filter(\"time is not null\")\r\n",
+					"df_earthquakes = df_earthquakes.filter(\"place is not null\")\r\n",
+					"\r\n",
+					"print(\"Total count after removing duplicate and appying null checks: \" + str(df_earthquakes.count()))\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(df_earthquakes)"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"#save clean data into silver layer as delta table\r\n",
+					"\r\n",
+					"delta_table_path = \"/silver/earthquakes\"\r\n",
+					"df_earthquakes.write.format(\"delta\").save(delta_table_path)\r\n",
+					" "
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
 			}
 		]
 	}
