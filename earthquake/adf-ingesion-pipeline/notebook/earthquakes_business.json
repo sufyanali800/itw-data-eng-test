@@ -13,12 +13,13 @@
 			"driverCores": 4,
 			"executorMemory": "28g",
 			"executorCores": 4,
-			"numExecutors": 2,
+			"numExecutors": 11,
+			"runAsWorkspaceSystemIdentity": true,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
-				"spark.dynamicAllocation.minExecutors": "2",
-				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "37eb48e5-6cd8-4bcb-b92e-0745965d100d"
+				"spark.dynamicAllocation.minExecutors": "11",
+				"spark.dynamicAllocation.maxExecutors": "11",
+				"spark.autotune.trackingId": "0a5c5175-20fc-4684-8a6a-603517186bfb"
 			}
 		},
 		"metadata": {
@@ -42,11 +43,11 @@
 				},
 				"sparkVersion": "3.3",
 				"nodeCount": 10,
-				"cores": 32,
-				"memory": 224,
+				"cores": 8,
+				"memory": 56,
 				"automaticScaleJobs": false
 			},
-			"sessionKeepAliveTimeout": 30
+			"sessionKeepAliveTimeout": 10
 		},
 		"cells": [
 			{
@@ -55,13 +56,193 @@
 					"collapsed": false
 				},
 				"source": [
-					"elta_table_path = \"/silver/earthquakes\"\r\n",
+					"delta_table_path = \"/silver/earthquakes\"\r\n",
 					"\r\n",
 					"df_source= spark.read.format(\"delta\").load(delta_table_path)\r\n",
 					"\r\n",
 					"display(df_source)"
 				],
-				"execution_count": 6
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting calander dim\r\n",
+					"from pyspark.sql.functions import year, month, dayofmonth, quarter, monotonically_increasing_id\r\n",
+					"\r\n",
+					"df_date = df_source.select('time').distinct()\r\n",
+					"df_date = df_date.select(year(\"time\").alias('year'),month(\"time\").alias('month'),dayofmonth(\"time\").alias('day'),quarter(\"time\").alias('quarter'))\r\n",
+					"df_date = df_date.withColumn(\"calander_key\", monotonically_increasing_id())\r\n",
+					"\r\n",
+					"delta_table_path = \"/gold/calander\"\r\n",
+					"df_date.mode.write.format(\"delta\").save(delta_table_path)\r\n",
+					"\r\n",
+					"#display(df_date)"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting status dim\r\n",
+					"\r\n",
+					"df_status = df_source.select('status').distinct()\r\n",
+					"df_status = df_status.withColumn(\"status_key\", monotonically_increasing_id())\r\n",
+					"\r\n",
+					"delta_table_path = \"/gold/status\"\r\n",
+					"df_status.write.format(\"delta\").save(delta_table_path)\r\n",
+					"\r\n",
+					"display(df_status)"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting magtype dim\r\n",
+					"\r\n",
+					"df_mag_type = df_source.select('magtype').distinct()\r\n",
+					"df_mag_type = df_mag_type.withColumn(\"mag_type_key\", monotonically_increasing_id())\r\n",
+					"\r\n",
+					"delta_table_path = \"/gold/magtype\"\r\n",
+					"df_mag_type.write.format(\"delta\").save(delta_table_path)\r\n",
+					"\r\n",
+					"display(df_mag_type)"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting type dim\r\n",
+					"\r\n",
+					"df_type = df_source.select('type').distinct()\r\n",
+					"df_type = df_type.withColumn(\"type_key\", monotonically_increasing_id())\r\n",
+					"\r\n",
+					"delta_table_path = \"/gold/type\"\r\n",
+					"df_type.write.mode(\"overwrite\").option(\"mergeSchema\", \"true\").format(\"delta\").save(delta_table_path)\r\n",
+					"\r\n",
+					"display(df_type)"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting place dim\r\n",
+					"\r\n",
+					"df_place = df_source.select('place').distinct()\r\n",
+					"df_place = df_place.withColumn(\"place_key\", monotonically_increasing_id())\r\n",
+					"\r\n",
+					"delta_table_path = \"/gold/place\"\r\n",
+					"df_place.write.mode(\"overwrite\").format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)\r\n",
+					"\r\n",
+					"display(df_place)"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(df_source)"
+				],
+				"execution_count": 29
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# extracting fact earthquacke\r\n",
+					"\r\n",
+					"df_earthquake = df_source.select()\r\n",
+					"\r\n",
+					"\r\n",
+					"display(df_earthquake)"
+				],
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -77,12 +258,10 @@
 					}
 				},
 				"source": [
-					"# extracting calander dim\r\n",
-					"from pyspark.sql.functions import year, month, dayofmonth\r\n",
+					"df_place = df_place.withColumn(\"place_key\", monotonically_increasing_id())\r\n",
 					"\r\n",
-					"df_date = df_source.select('time').distinct()\r\n",
-					"\r\n",
-					"df_date = df_date.select(year(\"date\").alias('year'),month(\"date\").alias('month'),dayofmonth(\"date\").alias('day'))"
+					"delta_table_path = \"/gold/place\"\r\n",
+					"df_place.write.format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)"
 				],
 				"execution_count": null
 			}
