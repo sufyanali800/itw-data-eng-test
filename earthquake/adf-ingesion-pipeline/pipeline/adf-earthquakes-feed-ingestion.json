@@ -1,0 +1,7 @@
+{
+	"name": "adf-earthquakes-feed-ingestion",
+	"properties": {
+		"description": "It will copy all source feed files from the source and put them into the Gen2 Bronze layer. ",
+		"annotations": []
+	}
+}
