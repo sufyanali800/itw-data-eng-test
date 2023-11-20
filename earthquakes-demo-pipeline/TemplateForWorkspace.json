@@ -302,6 +302,494 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/earthquakes_business')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "It will extract dimension and fact tables and do business aggregations.\n\n\n",
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "demo",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 11,
+					"runAsWorkspaceSystemIdentity": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "11",
+						"spark.dynamicAllocation.maxExecutors": "11",
+						"spark.autotune.trackingId": "c8cebf0e-8ec2-4574-a8aa-2212ab670e0a"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/e864c2c1-8ece-4d08-9e0e-b918af4697ec/resourceGroups/earthquake-demo/providers/Microsoft.Synapse/workspaces/earthquakes-demo-pipeline/bigDataPools/demo",
+						"name": "demo",
+						"type": "Spark",
+						"endpoint": "https://earthquakes-demo-pipeline.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/demo",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 10,
+						"cores": 8,
+						"memory": 56,
+						"automaticScaleJobs": false
+					},
+					"sessionKeepAliveTimeout": 10
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# extraing source data\r\n",
+							"\r\n",
+							"delta_table_path = \"/silver/earthquakes\"\r\n",
+							"df_source= spark.read.format(\"delta\").load(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_source)"
+						],
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# extracting calander dim\r\n",
+							"from pyspark.sql.functions import year, month, dayofmonth, quarter, monotonically_increasing_id\r\n",
+							"\r\n",
+							"df_date = df_source.select('time')\r\n",
+							"df_date = df_date.select(year(\"time\").alias('year'),month(\"time\").alias('month'),dayofmonth(\"time\").alias('day'),quarter(\"time\").alias('quarter')).distinct()\r\n",
+							"df_date = df_date.withColumn(\"calander_key\", monotonically_increasing_id())\r\n",
+							"\r\n",
+							"delta_table_path = \"/gold/calander\"\r\n",
+							"df_date.write.mode(\"overwrite\").option(\"mergeSchema\", \"true\").format(\"delta\").save(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_date)"
+						],
+						"outputs": [],
+						"execution_count": 65
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# extracting status dim\r\n",
+							"\r\n",
+							"df_status = df_source.select('status').distinct()\r\n",
+							"df_status = df_status.withColumn(\"status_key\", monotonically_increasing_id())\r\n",
+							"\r\n",
+							"delta_table_path = \"/gold/status\"\r\n",
+							"df_status.write.format(\"delta\").save(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_status)"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# extracting magtype dim\r\n",
+							"\r\n",
+							"df_mag_type = df_source.select('magtype').distinct()\r\n",
+							"df_mag_type = df_mag_type.withColumn(\"mag_type_key\", monotonically_increasing_id())\r\n",
+							"\r\n",
+							"delta_table_path = \"/gold/magtype\"\r\n",
+							"df_mag_type.write.format(\"delta\").save(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_mag_type)"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# extracting type dim\r\n",
+							"\r\n",
+							"df_type = df_source.select('type').distinct()\r\n",
+							"df_type = df_type.withColumn(\"type_key\", monotonically_increasing_id())\r\n",
+							"\r\n",
+							"delta_table_path = \"/gold/type\"\r\n",
+							"df_type.write.mode(\"overwrite\").option(\"mergeSchema\", \"true\").format(\"delta\").save(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_type)"
+						],
+						"outputs": [],
+						"execution_count": 23
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"# extracting place dim\r\n",
+							"\r\n",
+							"df_place = df_source.select('place').distinct()\r\n",
+							"df_place = df_place.withColumn(\"place_key\", monotonically_increasing_id())\r\n",
+							"\r\n",
+							"delta_table_path = \"/gold/place\"\r\n",
+							"df_place.write.mode(\"overwrite\").format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)\r\n",
+							"\r\n",
+							"display(df_place)"
+						],
+						"outputs": [],
+						"execution_count": 27
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(df_source)"
+						],
+						"outputs": [],
+						"execution_count": 29
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# extracting fact earthquake table\r\n",
+							"from pyspark.sql.functions import year, month, dayofmonth, quarter, monotonically_increasing_id\r\n",
+							"\r\n",
+							"#print(\"total count before: \"+ str(df_source.count()))\r\n",
+							"\r\n",
+							"df_earthquake = df_source.join(df_place,df_place.place ==  df_source.place,\"left\")\r\n",
+							"df_earthquake = df_earthquake.join(df_type,df_type.type ==  df_earthquake.type,\"left\")\r\n",
+							"df_earthquake = df_earthquake.join(df_mag_type,df_mag_type.magtype ==  df_earthquake.magtype,\"left\")\r\n",
+							"df_earthquake = df_earthquake.join(df_status,df_status.status ==  df_earthquake.status,\"left\")\r\n",
+							"\r\n",
+							"# joing calander to remove time \r\n",
+							"\r\n",
+							"join_conditions = [\r\n",
+							"    df_date.year == year(df_earthquake.time), \r\n",
+							"    df_date.month == month(df_earthquake.time),\r\n",
+							"    df_date.day == dayofmonth(df_earthquake.time),\r\n",
+							"    df_date.quarter == quarter(df_earthquake.time)]\r\n",
+							"\r\n",
+							"df_earthquake = df_earthquake.join(df_date, join_conditions ,\"left\")\r\n",
+							"\r\n",
+							"\r\n",
+							"df_earthquake = df_earthquake.drop(\"place\",\"type\",\"magtype\",\"status\",\"time\")\r\n",
+							"\r\n",
+							"#print(\"total count before: \"+ str(df_earthquake.count()))"
+						],
+						"outputs": [],
+						"execution_count": 69
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(df_earthquake)"
+						],
+						"outputs": [],
+						"execution_count": 70
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"delta_table_path = \"/gold/earthquakes\"\r\n",
+							"df_earthquake.write.mode(\"overwrite\").format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)"
+						],
+						"outputs": [],
+						"execution_count": 71
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/earthquakes_data_cleanup')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"description": "it will do the data cleanup and store data in the silver layer",
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "demo",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "80e26248-62f6-46cf-9f00-365e4545fb2d"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/e864c2c1-8ece-4d08-9e0e-b918af4697ec/resourceGroups/earthquake-demo/providers/Microsoft.Synapse/workspaces/earthquakes-demo-pipeline/bigDataPools/demo",
+						"name": "demo",
+						"type": "Spark",
+						"endpoint": "https://earthquakes-demo-pipeline.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/demo",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.3",
+						"nodeCount": 10,
+						"cores": 8,
+						"memory": 56,
+						"automaticScaleJobs": false
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"# load data\r\n",
+							"df_source = spark.read.parquet(\"abfss://earthquakes@earthquakeslakehouse.dfs.core.windows.net/bronze/\")\r\n",
+							"\r\n",
+							"print(\"Total records: \"+ str(df_source.count()))"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# remove duplicates\r\n",
+							"\r\n",
+							"df_earthquakes = df_source.distinct()\r\n",
+							"df_earthquakes = df_earthquakes.filter(\"time is not null\")\r\n",
+							"df_earthquakes = df_earthquakes.filter(\"place is not null\")\r\n",
+							"\r\n",
+							"print(\"Total count after removing duplicate and appying null checks: \" + str(df_earthquakes.count()))\r\n",
+							"\r\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 21
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"display(df_earthquakes)"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"\r\n",
+							"#save clean data into silver layer as delta table\r\n",
+							"\r\n",
+							"delta_table_path = \"/silver/earthquakes\"\r\n",
+							"df_earthquakes.write.format(\"delta\").save(delta_table_path)\r\n",
+							" "
+						],
+						"outputs": [],
+						"execution_count": 23
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/demo')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": []
+			},
+			"dependsOn": []
 		}
 	]
 }
