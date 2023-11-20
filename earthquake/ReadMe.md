@@ -5,7 +5,7 @@
 
     Step 1: On Board data into lakehouse from all availabel sources
             
-            For CSV files: Azure Data Factory 
+            For incremental CSV files: Azure Data Factory 
             to simulate the process, I placed all the files in storage account as input feed
             
             future implementation 
