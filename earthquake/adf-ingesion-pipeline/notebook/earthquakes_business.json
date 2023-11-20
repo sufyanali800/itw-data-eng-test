@@ -19,7 +19,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "11",
 				"spark.dynamicAllocation.maxExecutors": "11",
-				"spark.autotune.trackingId": "0a5c5175-20fc-4684-8a6a-603517186bfb"
+				"spark.autotune.trackingId": "8a3f1b35-8909-45a9-b515-c2b6102334bb"
 			}
 		},
 		"metadata": {
@@ -56,8 +56,9 @@
 					"collapsed": false
 				},
 				"source": [
-					"delta_table_path = \"/silver/earthquakes\"\r\n",
+					"# extraing source data\r\n",
 					"\r\n",
+					"delta_table_path = \"/silver/earthquakes\"\r\n",
 					"df_source= spark.read.format(\"delta\").load(delta_table_path)\r\n",
 					"\r\n",
 					"display(df_source)"
@@ -82,16 +83,16 @@
 					"# extracting calander dim\r\n",
 					"from pyspark.sql.functions import year, month, dayofmonth, quarter, monotonically_increasing_id\r\n",
 					"\r\n",
-					"df_date = df_source.select('time').distinct()\r\n",
-					"df_date = df_date.select(year(\"time\").alias('year'),month(\"time\").alias('month'),dayofmonth(\"time\").alias('day'),quarter(\"time\").alias('quarter'))\r\n",
+					"df_date = df_source.select('time')\r\n",
+					"df_date = df_date.select(year(\"time\").alias('year'),month(\"time\").alias('month'),dayofmonth(\"time\").alias('day'),quarter(\"time\").alias('quarter')).distinct()\r\n",
 					"df_date = df_date.withColumn(\"calander_key\", monotonically_increasing_id())\r\n",
 					"\r\n",
 					"delta_table_path = \"/gold/calander\"\r\n",
-					"df_date.mode.write.format(\"delta\").save(delta_table_path)\r\n",
+					"df_date.write.mode(\"overwrite\").option(\"mergeSchema\", \"true\").format(\"delta\").save(delta_table_path)\r\n",
 					"\r\n",
-					"#display(df_date)"
+					"display(df_date)"
 				],
-				"execution_count": 12
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -231,18 +232,54 @@
 						"transient": {
 							"deleting": false
 						}
+					}
+				},
+				"source": [
+					"# extracting fact earthquake table\r\n",
+					"from pyspark.sql.functions import year, month, dayofmonth, quarter, monotonically_increasing_id\r\n",
+					"\r\n",
+					"#print(\"total count before: \"+ str(df_source.count()))\r\n",
+					"\r\n",
+					"df_earthquake = df_source.join(df_place,df_place.place ==  df_source.place,\"left\")\r\n",
+					"df_earthquake = df_earthquake.join(df_type,df_type.type ==  df_earthquake.type,\"left\")\r\n",
+					"df_earthquake = df_earthquake.join(df_mag_type,df_mag_type.magtype ==  df_earthquake.magtype,\"left\")\r\n",
+					"df_earthquake = df_earthquake.join(df_status,df_status.status ==  df_earthquake.status,\"left\")\r\n",
+					"\r\n",
+					"# joing calander to remove time \r\n",
+					"\r\n",
+					"join_conditions = [\r\n",
+					"    df_date.year == year(df_earthquake.time), \r\n",
+					"    df_date.month == month(df_earthquake.time),\r\n",
+					"    df_date.day == dayofmonth(df_earthquake.time),\r\n",
+					"    df_date.quarter == quarter(df_earthquake.time)]\r\n",
+					"\r\n",
+					"df_earthquake = df_earthquake.join(df_date, join_conditions ,\"left\")\r\n",
+					"\r\n",
+					"\r\n",
+					"df_earthquake = df_earthquake.drop(\"place\",\"type\",\"magtype\",\"status\",\"time\")\r\n",
+					"\r\n",
+					"#print(\"total count before: \"+ str(df_earthquake.count()))"
+				],
+				"execution_count": 69
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
 					},
 					"collapsed": false
 				},
 				"source": [
-					"# extracting fact earthquacke\r\n",
-					"\r\n",
-					"df_earthquake = df_source.select()\r\n",
-					"\r\n",
-					"\r\n",
 					"display(df_earthquake)"
 				],
-				"execution_count": 28
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -258,12 +295,10 @@
 					}
 				},
 				"source": [
-					"df_place = df_place.withColumn(\"place_key\", monotonically_increasing_id())\r\n",
-					"\r\n",
-					"delta_table_path = \"/gold/place\"\r\n",
-					"df_place.write.format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)"
+					"delta_table_path = \"/gold/earthquakes\"\r\n",
+					"df_earthquake.write.mode(\"overwrite\").format(\"delta\").option(\"mergeSchema\", \"true\").save(delta_table_path)"
 				],
-				"execution_count": null
+				"execution_count": 71
 			}
 		]
 	}
